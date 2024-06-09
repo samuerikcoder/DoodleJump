@@ -1,0 +1,31 @@
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: black;
+}
+
+.grid {
+  width: 618px;
+  height: 929px;
+  background-image: url('images/background.png');
+  position: relative;
+  font-size: 100px;
+  text-align: center;
+}
+
+.doodler {
+  width: 87px;
+  height: 85px;
+  background-image: url('images/doodler-guy.png');
+  position: absolute;
+}
+
+.platform {
+  width: 105px;
+  height: 35px;
+  position: absolute;
+  background-image: url('images/platform.png');
+  background-repeat: no-repeat;
+  background-size: contain;
+}
