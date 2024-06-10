@@ -18,12 +18,30 @@ document.addEventListener("DOMContentLoaded", () => {
   let downTimerId;
   let leftTimerId;
   let rightTimerId;
-  const gameOverAudio = new Audio('audios/game-over.mp3');
+  const gameOverAudio = new Audio("audios/game-over.mp3");
   const jumpAudio = new Audio("audios/jump.mp3");
+  const springJumpAudio = new Audio("audios/spring-jump.mp3");
+
+  class Spring {
+    constructor(left, bottom) {
+      this.left = left;
+      this.bottom = bottom;
+
+      this.visual = document.createElement("div");
+      const visual = this.visual;
+
+      visual.style.left = left + "px";
+      visual.style.bottom = bottom + "px";
+
+      visual.classList.add("spring");
+      grid.appendChild(visual);
+    }
+  }
 
   class Platform {
     constructor(newPlatBottom) {
       const platformWidth = 105;
+      const springWidth = 30;
       this.left = Math.random() * (618 - platformWidth);
       this.bottom = newPlatBottom;
       this.visual = document.createElement("div");
@@ -34,6 +52,13 @@ document.addEventListener("DOMContentLoaded", () => {
       visual.style.bottom = this.bottom + "px";
 
       grid.appendChild(visual);
+
+      const hasSpring = Math.random() > 0.7;
+
+      if (hasSpring) {
+        const springLeft = this.left + (platformWidth - springWidth) / 2;
+        this.spring = new Spring(springLeft, this.bottom + 26);
+      }
     }
   }
 
@@ -54,12 +79,25 @@ document.addEventListener("DOMContentLoaded", () => {
         let visual = platform.visual;
         visual.style.bottom = platform.bottom + "px";
 
+        if (platform.spring) {
+          platform.spring.bottom -= speed;
+          platform.spring.visual.style.bottom = platform.spring.bottom + "px";
+        }
+
         if (platform.bottom < 10) {
-          let firstPlatform = platforms[0].visual;
-          firstPlatform.classList.remove("platform");
+          let firstPlatform = platforms[0];
+
+          firstPlatform.visual.classList.remove("platform");
+          grid.removeChild(firstPlatform.visual);
+
+          if (firstPlatform.spring) {
+            firstPlatform.spring.visual.classList.remove("spring");
+            grid.removeChild(firstPlatform.spring.visual);
+          }
+
           platforms.shift();
           score++;
-          speed += 0.001;
+          speed += 0.009;
           let newPlatform = new Platform(929);
           platforms.push(newPlatform);
         }
@@ -92,20 +130,46 @@ document.addEventListener("DOMContentLoaded", () => {
           doodlerLeftSpace <= platform.left + 105 &&
           !isJumping
         ) {
-          startPoint = doodlerBottomSpace;
-          jump();
-          isJumping = true;
+          if (
+            platform.spring &&
+            doodlerBottomSpace <= platform.spring.bottom &&
+            doodlerLeftSpace + 60 >= platform.spring.left &&
+            doodlerLeftSpace <= platform.spring.left + 30
+          ) {
+            startPoint = doodlerBottomSpace;
+            springJump();
+            platform.spring.visual.style.backgroundImage = 'url(images/opened-spring.png)';
+            isJumping = true;
+          } else {
+            startPoint = doodlerBottomSpace;
+            jump();
+            isJumping = true;
+          }
         }
       });
     }, 20);
   };
+  
+  const springJump = () => {
+    clearInterval(downTimerId);
+    isJumping = true;
+    springJumpAudio.play();
+    upTimerId = setInterval(() => {
+      doodlerBottomSpace += 30;
+      doodler.style.bottom = doodlerBottomSpace + "px";
+      if (doodlerBottomSpace > startPoint + 400) {
+        fall();
+        isJumping = false;
+      }
+    }, 30);
+  };
+  
 
   const jump = () => {
     clearInterval(downTimerId);
     isJumping = true;
-    jumpAudio.play();
     upTimerId = setInterval(() => {
-      doodlerBottomSpace += 20;
+      doodlerBottomSpace += 15;
       doodler.style.bottom = doodlerBottomSpace + "px";
       if (doodlerBottomSpace > startPoint + 200) {
         fall();
