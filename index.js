@@ -346,6 +346,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const start = () => {
     if (!isGameOver) {
+      startMusic();
       createPlatforms();
       createDoodler();
       setInterval(movePlatforms, 30);
