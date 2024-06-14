@@ -1,6 +1,13 @@
 document.addEventListener("DOMContentLoaded", () => {
   const grid = document.querySelector(".grid");
   const doodler = document.createElement("div");
+  const backgroundMusic = document.getElementById("backgroundMusic");
+  const winAudio = document.getElementById("winAudio");
+  const gameOverVideo = document.getElementById("gameOverVideo");
+  const startButton = document.getElementById("startButton");
+  const timerDisplay = document.getElementById("timer");
+
+  const brokenPlatformSound = new Audio('audios/broken-sound.mp3');
 
   let isGameOver = false;
   let speed = 3;
@@ -18,9 +25,42 @@ document.addEventListener("DOMContentLoaded", () => {
   let downTimerId;
   let leftTimerId;
   let rightTimerId;
-  const gameOverAudio = new Audio("audios/game-over.mp3");
-  const jumpAudio = new Audio("audios/jump.mp3");
-  const springJumpAudio = new Audio("audios/spring-jump.mp3");
+  let phaseTimerId;
+  let timerId;
+  let timeElapsed = 0;
+  let currentPhase = 1;
+
+  const startMusic = () => {
+    backgroundMusic.play().catch((error) => {
+      console.error("Error playing background music:", error);
+    });
+  };
+
+  const stopMusic = () => {
+    backgroundMusic.pause();
+    backgroundMusic.currentTime = 0;
+  };
+
+  const updateTimer = () => {
+    timeElapsed++;
+    const minutes = Math.floor(timeElapsed / 60);
+    const seconds = timeElapsed % 60;
+    timerDisplay.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
+  const winGame = () => {
+    isGameOver = true;
+    stopMusic();
+    winAudio.play();
+    while (grid.firstChild) {
+      grid.removeChild(grid.firstChild);
+    }
+    const winMessage = document.createElement("div");
+    winMessage.innerHTML = `You Win!<br>Your score: ${score}`;
+    winMessage.classList.add("win-message");
+    grid.appendChild(winMessage);
+    clearInterval(timerId);
+  };
 
   class Spring {
     constructor(left, bottom) {
@@ -45,17 +85,28 @@ document.addEventListener("DOMContentLoaded", () => {
       this.left = Math.random() * (618 - platformWidth);
       this.bottom = newPlatBottom;
       this.visual = document.createElement("div");
-
+  
       const visual = this.visual;
-      visual.classList.add("platform");
+      const isBrokenPlatform = Math.random() > 0.9;
+  
+      if (isBrokenPlatform) {
+        visual.classList.add("platform", "broken-platform");
+      } else {
+        visual.classList.add("platform");
+      }
+  
       visual.style.left = this.left + "px";
       visual.style.bottom = this.bottom + "px";
-
+  
       grid.appendChild(visual);
+  
+      this.isBroken = isBrokenPlatform;
+      this.isMovingPlatform = Math.random() > 0.95;
+      this.direction = this.isMovingPlatform ? (Math.random() > 0.5 ? 1 : -1) : 0;
 
       const hasSpring = Math.random() > 0.7;
-
-      if (hasSpring) {
+  
+      if (hasSpring && !isBrokenPlatform && !this.isMovingPlatform) {
         const springLeft = this.left + (platformWidth - springWidth) / 2;
         this.spring = new Spring(springLeft, this.bottom + 26);
       }
@@ -84,14 +135,22 @@ document.addEventListener("DOMContentLoaded", () => {
           platform.spring.visual.style.bottom = platform.spring.bottom + "px";
         }
 
+        if (platform.isMovingPlatform) {
+          if (platform.left <= 0 || platform.left >= 513) {
+            platform.direction *= -1;
+          }
+          platform.left += platform.direction * 2;
+          visual.style.left = platform.left + "px";
+        }
+
         if (platform.bottom < 10) {
           let firstPlatform = platforms[0];
 
-          firstPlatform.visual.classList.remove("platform");
-          grid.removeChild(firstPlatform.visual);
+          if (firstPlatform.visual && grid.contains(firstPlatform.visual)) {
+            grid.removeChild(firstPlatform.visual);
+          }
 
-          if (firstPlatform.spring) {
-            firstPlatform.spring.visual.classList.remove("spring");
+          if (firstPlatform.spring && grid.contains(firstPlatform.spring.visual)) {
             grid.removeChild(firstPlatform.spring.visual);
           }
 
@@ -138,8 +197,15 @@ document.addEventListener("DOMContentLoaded", () => {
           ) {
             startPoint = doodlerBottomSpace;
             springJump();
-            platform.spring.visual.style.backgroundImage = 'url(images/opened-spring.png)';
             isJumping = true;
+          } else if (platform.isBroken) {
+            platform.visual.classList.add("broken-activated");
+            setTimeout(() => {
+              if (platform.visual && grid.contains(platform.visual)) {
+                grid.removeChild(platform.visual);                
+              }
+            }, 500);
+            brokenPlatformSound.play();
           } else {
             startPoint = doodlerBottomSpace;
             jump();
@@ -150,26 +216,26 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 20);
   };
   
+
   const springJump = () => {
     clearInterval(downTimerId);
     isJumping = true;
+    const springJumpAudio = new Audio("audios/spring-jump.mp3");
     springJumpAudio.play();
     upTimerId = setInterval(() => {
-      doodlerBottomSpace += 30;
+      doodlerBottomSpace += 45;
       doodler.style.bottom = doodlerBottomSpace + "px";
-      if (doodlerBottomSpace > startPoint + 400) {
+      if (doodlerBottomSpace > startPoint + 250) {
         fall();
-        isJumping = false;
       }
-    }, 30);
+    }, 20);
   };
-  
 
   const jump = () => {
     clearInterval(downTimerId);
     isJumping = true;
     upTimerId = setInterval(() => {
-      doodlerBottomSpace += 15;
+      doodlerBottomSpace += 20;
       doodler.style.bottom = doodlerBottomSpace + "px";
       if (doodlerBottomSpace > startPoint + 200) {
         fall();
@@ -183,14 +249,13 @@ document.addEventListener("DOMContentLoaded", () => {
       clearInterval(rightTimerId);
       isGoingRight = false;
     }
-
     isGoingLeft = true;
     leftTimerId = setInterval(() => {
       if (doodlerLeftSpace >= 0) {
         doodlerLeftSpace -= 5;
         doodler.style.left = doodlerLeftSpace + "px";
       } else {
-        doodlerLeftSpace = 618 - 60;
+        doodlerLeftSpace = 618;
         doodler.style.left = doodlerLeftSpace + "px";
       }
     }, 20);
@@ -203,7 +268,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     isGoingRight = true;
     rightTimerId = setInterval(() => {
-      if (doodlerLeftSpace <= 618 - 60) {
+      if (doodlerLeftSpace <= 618) {
         doodlerLeftSpace += 5;
         doodler.style.left = doodlerLeftSpace + "px";
       } else {
@@ -233,19 +298,50 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const gameOver = () => {
     isGameOver = true;
-    while (grid.firstChild) {
-      grid.removeChild(grid.firstChild);
-    }
-    const gameOverText = document.createElement("div");
-    gameOverText.innerHTML = `Game Over!<br>Your score: ${score}`;
-    gameOverText.classList.add("game-over");
-    grid.appendChild(gameOverText);
+    stopMusic();
+    gameOverVideo.style.display = "block";
+    gameOverVideo.play();
+    gameOverVideo.onended = () => {
+      while (grid.firstChild) {
+        grid.removeChild(grid.firstChild);
+      }
+      const gameOverText = document.createElement("div");
+      gameOverText.innerHTML = `Game Over!<br>Your score: ${score}`;
+      gameOverText.classList.add("game-over");
+      grid.appendChild(gameOverText);
+    };
+
     clearInterval(downTimerId);
     clearInterval(upTimerId);
     clearInterval(leftTimerId);
     clearInterval(rightTimerId);
+    clearInterval(phaseTimerId);
+    clearInterval(timerId);
 
+    const gameOverAudio = new Audio("audios/game-over.mp3");
     gameOverAudio.play();
+  };
+
+  const startNextPhase = () => {
+    if (currentPhase === 1) {
+      currentPhase = 2;
+      grid.classList.add("phase2");
+      doodlerLeftSpace = 618;
+      speed = 4.5;
+      phaseTimerId = setTimeout(winGame, 1 * 60 * 1000);
+    }
+    platforms.forEach(platform => {
+      if (platform.visual && grid.contains(platform.visual)) {
+        grid.removeChild(platform.visual);
+      }
+    });
+    platforms = [];
+    score = 0;
+    createPlatforms();
+    doodlerBottomSpace = startPoint;
+    doodler.style.left = doodlerLeftSpace + "px";
+    doodler.style.bottom = doodlerBottomSpace + "px";
+    timeElapsed = 0;
   };
 
   const start = () => {
@@ -255,8 +351,13 @@ document.addEventListener("DOMContentLoaded", () => {
       setInterval(movePlatforms, 30);
       jump();
       document.addEventListener("keyup", control);
+      phaseTimerId = setTimeout(startNextPhase, 2 * 60 * 1000);
+      timerId = setInterval(updateTimer, 1000);
     }
   };
 
-  start();
+  startButton.addEventListener("click", () => {
+    startButton.style.display = "none";
+    start();
+  });
 });

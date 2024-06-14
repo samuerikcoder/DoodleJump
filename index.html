@@ -1,14 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Doodle Jump</title>
     <link rel="stylesheet" href="style.css">
-    <script src="index.js"></script>
-  </head>
-  <body>
+</head>
+<body>
     <div class="grid">
+        <div class="timer">Time: <span id="timer">0:00</span></div>
+        <div class="doodler"></div>
     </div>
-  </body>
+    <audio id="backgroundMusic" src="audios/background-music.mp3" loop></audio>
+    <audio id="winAudio" src="audios/win.mp3"></audio>
+    <video id="gameOverVideo" src="videos/gameOverVideo.mp4" style="display: none;"></video>
+    <button id="startButton">Start Game</button>
+    <script src="index.js"></script>
+</body>
 </html>
+
